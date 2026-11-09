@@ -1,0 +1,26 @@
+services:
+  jobmanager:
+    build: .
+    command: jobmanager
+    ports: ["8081:8081"]
+    environment: {JOB_MANAGER_RPC_ADDRESS: jobmanager}
+    volumes: ["flink-checkpoints:/tmp/flink-checkpoints"]
+  taskmanager:
+    build: .
+    command: taskmanager
+    depends_on: [jobmanager]
+    environment: {JOB_MANAGER_RPC_ADDRESS: jobmanager}
+    volumes: ["flink-checkpoints:/tmp/flink-checkpoints"]
+  submit:
+    build: .
+    depends_on: [jobmanager, taskmanager]
+    entrypoint: ["/bin/sh", "-c"]
+    command: ["sleep 12; flink run -m jobmanager:8081 -c com.bankguard.FraudStreamingJob /opt/flink/usrlib/fraudstream.jar"]
+    environment:
+      SOURCE_MODE: ${SOURCE_MODE:-demo}
+      KAFKA_BOOTSTRAP: ${KAFKA_BOOTSTRAP:-redpanda:9092}
+      KAFKA_SINK_ENABLED: ${KAFKA_SINK_ENABLED:-false}
+      KAFKA_INPUT_TOPIC: bank.transactions
+      KAFKA_OUTPUT_TOPIC: bank.fraud.decisions
+volumes:
+  flink-checkpoints:
